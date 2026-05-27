@@ -1,17 +1,45 @@
----
-name: serper-dev
-description: Use when an agent needs to query live Google data via Serper.dev — web search, news, images, videos, shopping, places, maps, reviews, scholar, patents, autocomplete, reverse image search, or webpage scraping. Trigger on any task requiring real-time or external information retrieval.
----
+# Global Agent Guide
 
-# Serper.dev API Skill
+## IMPORTANT RULES (MUST FOLLOW)
 
-## Overview
+- **Read latest docs before using external code.** When working with any package, framework, library, or external dependency, always fetch and read the current documentation first.
+  - Rationale: APIs change, features deprecate, best practices evolve. Outdated knowledge = broken code.
 
-Serper provides Google Search API endpoints via POST requests to `https://google.serper.dev/<endpoint>` (and `https://scrape.serper.dev` for scraping). All requests require the header `X-API-KEY: <YOUR_API_KEY>` and `Content-Type: application/json`.
+- When searching for latest data, NEVER include year/date in search query. Examples:
+  - Wrong: `"Convex documentation 2025"`, `"latest React docs 2025"`, `"best practices 2024"`
+  - Right: `"Convex documentation"`, `"latest React docs"`, `"React best practices"`
+  - The query should focus on the topic, not temporal markers.
 
----
+- **Package manager priority.** Use `bun` > `pnpm` > `npm` (in that order). Check availability with `command -v <pm>`. Use first available.
+  - Rationale: bun/pnpm faster, better dependency handling than npm.
 
-## Common Parameters
+- **Prefer existing tools over custom code.** Before writing code from scratch, search for open-source, stable, well-maintained tools that solve the problem. When a tool is found:
+  - Present the tool with brief rationale (name, repo, why it fits)
+  - Ask user to confirm before proceeding with the suggested tool
+  - Only write custom code if no suitable tool exists or user declines the suggestion
+
+## Skills guide
+
+- **Use skills first.** Check for matching skill before writing code. Load with `read` tool, follow instructions.
+- **Combine multiple skills.** Read all matches, extract patterns, resolve conflicts, synthesize.
+- **Sources:** `~/.pi/agent/skills/` and `.pi/skills/`
+- **No match?** Use best judgment with tools and context.
+
+## Web Scraping
+
+Use `~/agent-skills/read-url.sh` for scraping web pages. Outputs markdown content to stdout.
+
+```bash
+./read-url.sh <url>
+```
+
+Output is clean markdown suitable for AI processing. Cached files and index are stored in `~/agent-skills/pages/`.
+
+## Serper.dev API
+
+Serper provides Google Search API endpoints via POST requests to `https://google.serper.dev/<endpoint>`. All requests require the header `X-API-KEY: <YOUR_API_KEY>` and `Content-Type: application/json`.
+
+### Common Parameters
 
 These parameters are shared across most search endpoints. Only include them when needed.
 
@@ -24,19 +52,17 @@ These parameters are shared across most search endpoints. Only include them when
 | Page       | `page` | Page number for pagination, default `1`                                                                  |
 | Results    | `num`  | Number of results to return                                                                              |
 
----
+### Endpoints
 
-## Endpoints
+1. Web Search
 
-### 1. Web Search
-
-**POST** `https://google.serper.dev/search`  
-Google web search results. Credits: **1**  
+**POST** `https://google.serper.dev/search`
+Google web search results.
 Parameters: `q`, `gl`, `hl`, `tbs`, `page`
 
 ```json
 {
-  "q": "best AI frameworks 2025",
+  "q": "best AI frameworks",
   "gl": "us",
   "hl": "en",
   "tbs": "qdr:m",
@@ -44,48 +70,40 @@ Parameters: `q`, `gl`, `hl`, `tbs`, `page`
 }
 ```
 
----
+2. Image Search
 
-### 2. Image Search
-
-**POST** `https://google.serper.dev/images`  
-Google Images results. Credits: **1**  
+**POST** `https://google.serper.dev/images`
+Google Images results.
 Parameters: `q`, `gl`, `hl`, `tbs`, `num`, `page`
 
 ```json
 { "q": "eiffel tower sunset", "gl": "us", "hl": "en", "num": 10 }
 ```
 
----
+3. Video Search
 
-### 3. Video Search
-
-**POST** `https://google.serper.dev/videos`  
-Google Videos results. Credits: **1**  
+**POST** `https://google.serper.dev/videos`
+Google Videos results.
 Parameters: `q`, `gl`, `hl`, `tbs`, `page`
 
 ```json
 { "q": "how to make sourdough bread", "gl": "us", "hl": "en" }
 ```
 
----
+4. News Search
 
-### 4. News Search
-
-**POST** `https://google.serper.dev/news`  
-Google News results. Credits: **1**  
+**POST** `https://google.serper.dev/news`
+Google News results.
 Parameters: `q`, `gl`, `hl`, `tbs`, `page`
 
 ```json
-{ "q": "AI regulation 2025", "gl": "us", "hl": "en", "tbs": "qdr:w" }
+{ "q": "AI regulation", "gl": "us", "hl": "en", "tbs": "qdr:w" }
 ```
 
----
+5. Shopping Search
 
-### 5. Shopping Search
-
-**POST** `https://google.serper.dev/shopping`  
-Google Shopping results. Credits: **2**  
+**POST** `https://google.serper.dev/shopping`
+Google Shopping results.
 Parameters: `q`, `gl`, `hl`, `page`, `num` (max 40)
 
 ```json
@@ -97,37 +115,31 @@ Parameters: `q`, `gl`, `hl`, `page`, `num` (max 40)
 }
 ```
 
----
+6. Scholar Search
 
-### 6. Scholar Search
-
-**POST** `https://google.serper.dev/scholar`  
-Google Scholar academic papers. Credits: **1**  
+**POST** `https://google.serper.dev/scholar`
+Google Scholar academic papers.
 Parameters: `q`, `gl`, `hl`, `page`
 
 ```json
 { "q": "transformer attention mechanism", "gl": "us", "hl": "en", "page": 1 }
 ```
 
----
+7. Patents Search
 
-### 7. Patents Search
-
-**POST** `https://google.serper.dev/patents`  
-Google Patents results. Credits: **1**  
+**POST** `https://google.serper.dev/patents`
+Google Patents results.
 Parameters: `q`, `page`, `num` (max 40)
 
 ```json
 { "q": "neural network inference optimization", "num": 10, "page": 1 }
 ```
 
----
+8. Places Search
 
-### 8. Places Search
-
-**POST** `https://google.serper.dev/places`  
-Google Maps places/business listings. Credits: **2**  
-Parameters: `q`, `gl`, `hl`, `page`  
+**POST** `https://google.serper.dev/places`
+Google Maps places/business listings.
+Parameters: `q`, `gl`, `hl`, `page`
 Extra:
 
 - `location` — optional string to bias results to a specific area (e.g. `"New York, NY"`)
@@ -136,13 +148,11 @@ Extra:
 { "q": "coffee shops", "gl": "us", "hl": "en", "location": "Brooklyn, NY" }
 ```
 
----
+9. Maps Search
 
-### 9. Maps Search
-
-**POST** `https://google.serper.dev/maps`  
-Google Maps results with geo-targeting. Credits: **3**  
-Parameters: `q`, `hl`, `page`  
+**POST** `https://google.serper.dev/maps`
+Google Maps results with geo-targeting.
+Parameters: `q`, `hl`, `page`
 Extra:
 
 - `ll` — GPS position and zoom as string: `"@latitude,longitude,zoom"` (e.g. `"@40.7128,-74.0060,14z"`)
@@ -153,13 +163,11 @@ Extra:
 { "q": "pizza restaurant", "ll": "@40.7128,-74.0060,13z", "hl": "en" }
 ```
 
----
+10. Reviews
 
-### 10. Reviews
-
-**POST** `https://google.serper.dev/reviews`  
-Google Maps reviews for a specific place. Credits: **1**  
-Requires one of: `fid`, `cid`, or `placeId` to identify the place.  
+**POST** `https://google.serper.dev/reviews`
+Google Maps reviews for a specific place.
+Requires one of: `fid`, `cid`, or `placeId` to identify the place.
 Extra:
 
 - `fid` — Feature ID of the place
@@ -179,25 +187,21 @@ Extra:
 }
 ```
 
----
+11. Autocomplete
 
-### 11. Autocomplete
-
-**POST** `https://google.serper.dev/autocomplete`  
-Google Search autocomplete suggestions. Credits: **1**  
+**POST** `https://google.serper.dev/autocomplete`
+Google Search autocomplete suggestions.
 Parameters: `q`, `gl`, `hl`
 
 ```json
 { "q": "how to learn", "gl": "us", "hl": "en" }
 ```
 
----
+12. Reverse Image Search (Lens)
 
-### 12. Reverse Image Search (Lens)
-
-**POST** `https://google.serper.dev/lens`  
-Google Lens reverse image search. Credits: **3**  
-Parameters: `gl`, `hl`  
+**POST** `https://google.serper.dev/lens`
+Google Lens reverse image search.
+Parameters: `gl`, `hl`
 Extra:
 
 - `url` _(required)_ — Publicly accessible image URL to search by
@@ -210,24 +214,7 @@ Extra:
 }
 ```
 
----
-
-### 13. Webpage Scraper
-
-**POST** `https://scrape.serper.dev`  
-Scrapes a webpage and returns its content. Credits: **2 / 6 / 10** (varies by page complexity)  
-Extra:
-
-- `url` _(required)_ — URL of the webpage to scrape
-- `includeMarkdown` — `true` to return content as Markdown (default: `false`)
-
-```json
-{ "url": "https://example.com/article", "includeMarkdown": true }
-```
-
----
-
-## Mini-Batch Mode
+### Mini-Batch Mode
 
 Most endpoints support batch querying (up to 100 queries per request) by passing an array instead of a single object. Each query in the batch consumes 1 credit.
 
@@ -239,9 +226,7 @@ Most endpoints support batch querying (up to 100 queries per request) by passing
 ]
 ```
 
----
-
-## Full Request Template
+### Full Request Template
 
 ```javascript
 const response = await fetch('https://google.serper.dev/<endpoint>', {
@@ -255,7 +240,7 @@ const response = await fetch('https://google.serper.dev/<endpoint>', {
 const data = await response.json();
 ```
 
-## Choosing the Right Endpoint
+### Choosing the Right Endpoint
 
 | Task               | Endpoint            |
 | ------------------ | ------------------- |
@@ -271,4 +256,3 @@ const data = await response.json();
 | Business reviews   | `/reviews`          |
 | Search suggestions | `/autocomplete`     |
 | Identify an image  | `/lens`             |
-| Read a webpage     | `scrape.serper.dev` |
