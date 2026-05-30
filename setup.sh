@@ -34,7 +34,7 @@ if ! command -v crontab &>/dev/null; then
 fi
 
 # ── install crontab (idempotent) ──────────────────────────────────────────────
-CRON_LINE="$CRON_SCHEDULE $UPDATE_SCRIPT $CRON_MARKER"
+CRON_LINE="$CRON_SCHEDULE $UPDATE_SCRIPT >> $LOG_FILE 2>&1 $CRON_MARKER"
 
 (crontab -l 2>/dev/null | grep -vF "$CRON_MARKER" || true; echo "$CRON_LINE") | crontab -
 
