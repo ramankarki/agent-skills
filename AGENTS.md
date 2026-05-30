@@ -4,6 +4,8 @@
 
 - **Read latest docs before using external code.** When working with any package, framework, library, or external dependency, always fetch and read the current documentation first.
   - Rationale: APIs change, features deprecate, best practices evolve. Outdated knowledge = broken code.
+  - Process: Search for official docs → Read docs → Then execute commands
+  - Example: For TanStack Start, search "TanStack Start getting started", read the docs page, then use the CLI command documented there.
 
 - When searching for latest data, NEVER include year/date in search query. Examples:
   - Wrong: `"Convex documentation 2025"`, `"latest React docs 2025"`, `"best practices 2024"`
@@ -12,6 +14,7 @@
 
 - **Package manager priority.** Use `bun` > `pnpm` > `npm` (in that order). Check availability with `command -v <pm>`. Use first available.
   - Rationale: bun/pnpm faster, better dependency handling than npm.
+  - NEVER use npm or npx if bun or pnpm is available. Always prefer `bunx` over `npx`, `bun add` over `npm install`.
 
 - **Prefer existing tools over custom code.** Before writing code from scratch, search for open-source, stable, well-maintained tools that solve the problem. When a tool is found:
   - Present the tool with brief rationale (name, repo, why it fits)
