@@ -2,12 +2,29 @@
 # lib.sh — shared functions for URL scraping scripts
 
 # ── url normalization ─────────────────────────────────────────────────────────
-# Normalize URL: strip trailing slash from path (but keep query params intact)
-# https://react.dev/ -> https://react.dev
-# https://react.dev/?a=1 -> https://react.dev?a=1
+# Normalize URL: strip trailing slash from path EXCEPT for root URLs
+# https://react.dev/ -> https://react.dev/  (keep slash for root - lightpanda bug)
+# https://react.dev/learn/ -> https://react.dev/learn
+# https://react.dev/?a=1 -> https://react.dev/?a=1
 normalize_url() {
   local url="$1"
-  echo "$url" | sed -E 's|/\?|?|' | sed -E 's|/$||'
+  # Goal: path always ends with slash, query params preserved
+  # https://react.dev -> https://react.dev/
+  # https://react.dev/learn -> https://react.dev/learn/
+  # https://react.dev/learn?a=123 -> https://react.dev/learn/?a=123
+  # https://react.dev?a=123 -> https://react.dev/?a=123
+
+  if [[ "$url" =~ ^([^?]+)(\?.*)?$ ]]; then
+    local path="${BASH_REMATCH[1]}"
+    local query="${BASH_REMATCH[2]}"
+    # Ensure path ends with slash
+    if [[ ! "$path" =~ /$ ]]; then
+      path="$path/"
+    fi
+    echo "${path}${query}"
+  else
+    echo "$url"
+  fi
 }
 
 # ── index operations ─────────────────────────────────────────────────────────
