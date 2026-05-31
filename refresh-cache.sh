@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# update-cache.sh — re-scrape all indexed URLs
-# Designed for cron: ./update-cache.sh [batch_size]
-# Deps: scrape.sh
+# refresh-cache.sh — re-scrape all indexed URLs
+# Designed for cron: ./refresh-cache.sh [batch_size]
+# Deps: scrape-url.sh
 
 # Cron-friendly PATH: lightpanda, node, npm, jq
 export PATH="/Users/raman/.local/bin:/Users/raman/.nvm/versions/node/v24.15.0/bin:/usr/bin:/bin"
@@ -32,6 +32,16 @@ log() {
   RUN_LOG="${RUN_LOG}${entry}"$'\n'
 }
 
+# prepend run log to file (newest first)
+write_log() {
+  if [[ -n "$RUN_LOG" ]]; then
+    local tmp=$(mktemp)
+    printf "%s\n" "$RUN_LOG" > "$tmp"
+    [[ -f "$LOG_FILE" ]] && cat "$LOG_FILE" >> "$tmp"
+    mv "$tmp" "$LOG_FILE"
+  fi
+}
+
 # ── validate ──────────────────────────────────────────────────────────────────
 if ! command -v jq &>/dev/null; then
   log "Error: jq not found in PATH"
@@ -39,7 +49,7 @@ if ! command -v jq &>/dev/null; then
 fi
 
 if [[ ! -x "$SCRAPE" ]]; then
-  log "Error: scrape.sh not found or not executable at $SCRAPE"
+  log "Error: scrape-url.sh not found or not executable at $SCRAPE"
   exit 1
 fi
 
@@ -101,7 +111,7 @@ done
 
 log "Update complete: $SUCCESS succeeded, $FAIL failed"
 
-# prepend entire run to log file (newest run first)
+# prepend run log to file (newest first)
 if [[ -n "$RUN_LOG" ]]; then
   tmp=$(mktemp)
   printf "%s\n" "$RUN_LOG" > "$tmp"

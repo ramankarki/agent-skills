@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
-# Usage: ./scrape.sh <url>
-# scrape.sh — fetch a dynamic page, extract main content as clean markdown, index it
-# Goal: produce AI-friendly output (readable, stripped of boilerplate, clean markdown)
-# Uses: lightpanda (fetch), Mozilla Readability (content extraction), turndown (HTML→MD)
-# Called by: read-cache.sh (on miss), update-cache.sh (refresh all)
+# Usage: ./scrape-url.sh <url>
+# Fetch dynamic page, extract main content as markdown, index it
 
 # Cron-friendly PATH: lightpanda, node, npm, jq
 export PATH="/Users/raman/.local/bin:/Users/raman/.nvm/versions/node/v24.15.0/bin:/usr/bin:/bin"
@@ -11,12 +8,15 @@ export PATH="/Users/raman/.local/bin:/Users/raman/.nvm/versions/node/v24.15.0/bi
 set -euo pipefail
 
 # ── config ────────────────────────────────────────────────────────────────────
-URL="${1:-}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 OUTPUT_DIR="$SCRIPT_DIR/pages"
 INDEX_FILE="$SCRIPT_DIR/pages/index.json"
 
+# Source shared functions
+source "$SCRIPT_DIR/lib.sh"
+
 # ── validate ──────────────────────────────────────────────────────────────────
+URL="${1:-}"
 if [[ -z "$URL" ]]; then
   echo "Usage: $0 <url>" >&2
   exit 1
@@ -29,9 +29,10 @@ for dep in lightpanda jq node; do
   fi
 done
 
+NORMALIZED_URL=$(normalize_url "$URL")
 mkdir -p "$OUTPUT_DIR"
 
-# ── ensure dependencies ────────────────────────────────────────────────────────
+# ── ensure node dependencies ──────────────────────────────────────────────────
 NODE_PATH=""
 if [[ -d "$SCRIPT_DIR/node_modules" ]]; then
   NODE_PATH="$SCRIPT_DIR/node_modules"
@@ -47,12 +48,12 @@ RAW_HTML=$(lightpanda fetch \
   --dump html \
   --strip-mode js \
   --wait-until networkidle \
-  "$URL" 2>/dev/null) || {
-  echo "Error: lightpanda fetch failed for $URL" >&2
+  "$NORMALIZED_URL" 2>/dev/null) || {
+  echo "Error: lightpanda fetch failed for $NORMALIZED_URL" >&2
   exit 1
 }
 
-# ── extract main content with Mozilla Readability ──────────────────────────────
+# ── extract content with Mozilla Readability ───────────────────────────────────
 EXTRACT_SCRIPT=$(mktemp)
 cat > "$EXTRACT_SCRIPT" << 'ENDOFSCRIPT'
 const { Readability } = require('@mozilla/readability');
@@ -71,57 +72,37 @@ if (!article) {
 }
 
 const turndown = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-' });
-
 console.log('# ' + article.title + '\n');
 console.log(turndown.turndown(article.content));
 ENDOFSCRIPT
 
-CLEAN_MD=$(echo "$RAW_HTML" | NODE_PATH="$NODE_PATH" node "$EXTRACT_SCRIPT" "$URL" 2>/dev/null)
+CLEAN_MD=$(echo "$RAW_HTML" | NODE_PATH="$NODE_PATH" node "$EXTRACT_SCRIPT" "$NORMALIZED_URL" 2>/dev/null)
 rm -f "$EXTRACT_SCRIPT"
 
 if [[ -z "$CLEAN_MD" ]]; then
-  echo "Error: Readability extraction failed for $URL" >&2
+  echo "Error: Readability extraction failed for $NORMALIZED_URL" >&2
   exit 1
 fi
 
 # ── check for existing entry ─────────────────────────────────────────────────
 EXISTING_FILENAME=""
 if [[ -f "$INDEX_FILE" ]]; then
-  EXISTING_FILENAME=$(jq -r --arg url "$URL" \
-    '.[] | select(.url == $url) | .filename' "$INDEX_FILE" 2>/dev/null || echo "")
+  EXISTING_FILENAME=$(get_cached_filename "$INDEX_FILE" "$NORMALIZED_URL")
 fi
 
-# ── store (reuse existing filename or create new) ──────────────────────────────
+# ── store ─────────────────────────────────────────────────────────────────────
 if [[ -n "$EXISTING_FILENAME" ]]; then
   FILENAME="$EXISTING_FILENAME"
-  FILEPATH="${OUTPUT_DIR}/${FILENAME}"
-  echo "$CLEAN_MD" > "$FILEPATH"
 else
-  UUID=$(uuidgen | tr 'A-Z' 'a-z')
-  FILENAME="${UUID}.md"
-  FILEPATH="${OUTPUT_DIR}/${FILENAME}"
-  echo "$CLEAN_MD" > "$FILEPATH"
+  FILENAME="$(uuidgen | tr 'A-Z' 'a-z').md"
 fi
+FILEPATH="${OUTPUT_DIR}/${FILENAME}"
+echo "$CLEAN_MD" > "$FILEPATH"
 
 # ── update index ──────────────────────────────────────────────────────────────
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-if [[ ! -f "$INDEX_FILE" ]]; then
-  echo "[]" > "$INDEX_FILE"
-fi
-
-if [[ -n "$EXISTING_FILENAME" ]]; then
-  jq --arg url "$URL" \
-     --arg ts "$TIMESTAMP" \
-     'map(if .url == $url then .updated_at = $ts else . end)' \
-     "$INDEX_FILE" > "${INDEX_FILE}.tmp" && mv "${INDEX_FILE}.tmp" "$INDEX_FILE"
-else
-  jq --arg url "$URL" \
-     --arg fn "$FILENAME" \
-     --arg ts "$TIMESTAMP" \
-     '. += [{"url": $url, "filename": $fn, "updated_at": $ts}]' \
-     "$INDEX_FILE" > "${INDEX_FILE}.tmp" && mv "${INDEX_FILE}.tmp" "$INDEX_FILE"
-fi
+ensure_index "$INDEX_FILE"
+update_index "$INDEX_FILE" "$NORMALIZED_URL" "$FILENAME" "$TIMESTAMP" "$EXISTING_FILENAME"
 
 # ── output filepath for caller ────────────────────────────────────────────────
 echo "$FILEPATH"

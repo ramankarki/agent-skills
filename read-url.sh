@@ -1,29 +1,33 @@
 #!/usr/bin/env bash
 # Usage: ./read-url.sh <url>
-# read-url.sh — output cached markdown content for URL, scrape if miss
-# Always prints content to stdout
+# Output cached markdown content for URL, scrape if miss
 
 # Cron-friendly PATH: lightpanda, node, npm, jq
 export PATH="/Users/raman/.local/bin:/Users/raman/.nvm/versions/node/v24.15.0/bin:/usr/bin:/bin"
 
 set -euo pipefail
 
-URL="${1:-}"
+# ── config ────────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 OUTPUT_DIR="$SCRIPT_DIR/pages"
 INDEX_FILE="$SCRIPT_DIR/pages/index.json"
 SCRAPE_SCRIPT="$SCRIPT_DIR/scrape-url.sh"
 
+# Source shared functions
+source "$SCRIPT_DIR/lib.sh"
+
+# ── validate ──────────────────────────────────────────────────────────────────
+URL="${1:-}"
 if [[ -z "$URL" ]]; then
   echo "Usage: $0 <url>" >&2
   exit 1
 fi
 
-# Check index for cached entry
+NORMALIZED_URL=$(normalize_url "$URL")
+
+# ── check cache ───────────────────────────────────────────────────────────────
 if [[ -f "$INDEX_FILE" ]]; then
-  CACHED_FILENAME=$(jq -r --arg url "$URL" \
-    '.[] | select(.url == $url) | .filename' \
-    "$INDEX_FILE" 2>/dev/null || echo "")
+  CACHED_FILENAME=$(get_cached_filename "$INDEX_FILE" "$NORMALIZED_URL")
 
   if [[ -n "$CACHED_FILENAME" && -f "${OUTPUT_DIR}/${CACHED_FILENAME}" ]]; then
     cat "${OUTPUT_DIR}/${CACHED_FILENAME}"
@@ -31,7 +35,6 @@ if [[ -f "$INDEX_FILE" ]]; then
   fi
 fi
 
-# Cache miss — scrape it
-echo "[read-url] miss: $URL" >&2
-FILEPATH=$("$SCRAPE_SCRIPT" "$URL")
+# ── cache miss — scrape ───────────────────────────────────────────────────────
+FILEPATH=$("$SCRAPE_SCRIPT" "$NORMALIZED_URL")
 cat "$FILEPATH"

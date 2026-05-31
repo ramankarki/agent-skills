@@ -35,7 +35,7 @@ if [[ -z "$CRON_SCHEDULE" ]]; then
 fi
 
 if [[ ! -x "$UPDATE_SCRIPT" ]]; then
-  echo "Error: update-cache.sh not found or not executable" >&2
+  echo "Error: refresh-cache.sh not found or not executable" >&2
   exit 1
 fi
 
@@ -45,9 +45,10 @@ if ! command -v crontab &>/dev/null; then
 fi
 
 # ── install crontab (idempotent) ──────────────────────────────────────────────
-CRON_LINE="$CRON_SCHEDULE $UPDATE_SCRIPT >> $LOG_FILE 2>&1 $CRON_MARKER"
+# Remove any existing cron entry for refresh-cache.sh, then add new one
+CRON_LINE="$CRON_SCHEDULE $UPDATE_SCRIPT $CRON_MARKER"
 
-(crontab -l 2>/dev/null | grep -vF "$CRON_MARKER" || true; echo "$CRON_LINE") | crontab -
+(crontab -l 2>/dev/null | grep -v 'refresh-cache.sh' || true; echo "$CRON_LINE") | crontab -
 
 echo "[setup] cron installed: $CRON_LINE"
 echo "[setup] verify: crontab -l"
