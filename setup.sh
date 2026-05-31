@@ -11,6 +11,17 @@ LOG_FILE="$SCRIPT_DIR/update.log"
 CRON_MARKER="# agent-skills-update"
 CRON_SCHEDULE="${1:-}"
 
+# ── install deps ───────────────────────────────────────────────────────────────
+echo "[setup] installing npm deps..."
+cd "$SCRIPT_DIR"
+if command -v bun &>/dev/null; then
+  bun install --silent
+elif command -v pnpm &>/dev/null; then
+  pnpm install --silent
+else
+  npm install --silent
+fi
+
 # ── symlink skills ─────────────────────────────────────────────────────────────
 echo "[setup] linking skills..."
 ln -sf "$SCRIPT_DIR/skills"/* ~/.pi/agent/skills/ 2>/dev/null || true

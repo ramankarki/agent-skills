@@ -3,6 +3,9 @@
 # read-url.sh — output cached markdown content for URL, scrape if miss
 # Always prints content to stdout
 
+# Cron-friendly PATH: lightpanda, node, npm, jq
+export PATH="/Users/raman/.local/bin:/Users/raman/.nvm/versions/node/v24.15.0/bin:/usr/bin:/bin"
+
 set -euo pipefail
 
 URL="${1:-}"

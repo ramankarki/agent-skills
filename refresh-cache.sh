@@ -3,6 +3,9 @@
 # Designed for cron: ./update-cache.sh [batch_size]
 # Deps: scrape.sh
 
+# Cron-friendly PATH: lightpanda, node, npm, jq
+export PATH="/Users/raman/.local/bin:/Users/raman/.nvm/versions/node/v24.15.0/bin:/usr/bin:/bin"
+
 set -euo pipefail
 
 # ── config ────────────────────────────────────────────────────────────────────
@@ -26,8 +29,7 @@ RUN_LOG=""
 log() {
   local entry="[$(date +"%Y-%m-%d %H:%M:%S")] $*"
   echo "$entry"
-  RUN_LOG="${RUN_LOG}${entry}
-"
+  RUN_LOG="${RUN_LOG}${entry}"$'\n'
 }
 
 # ── validate ──────────────────────────────────────────────────────────────────
@@ -66,7 +68,6 @@ FAIL=0
 
 for (( i=0; i<TOTAL; i+=BATCH_SIZE )); do
   BATCH=("${URLS[@]:$i:$BATCH_SIZE}")
-  log "Batch $((i/BATCH_SIZE + 1)): ${#BATCH[@]} url(s)"
 
   PIDS=()
   TMPFILES=()
@@ -99,12 +100,11 @@ for (( i=0; i<TOTAL; i+=BATCH_SIZE )); do
 done
 
 log "Update complete: $SUCCESS succeeded, $FAIL failed"
-log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # prepend entire run to log file (newest run first)
 if [[ -n "$RUN_LOG" ]]; then
   tmp=$(mktemp)
-  printf "%s" "$RUN_LOG" > "$tmp"
+  printf "%s\n" "$RUN_LOG" > "$tmp"
   [[ -f "$LOG_FILE" ]] && cat "$LOG_FILE" >> "$tmp"
   mv "$tmp" "$LOG_FILE"
 fi

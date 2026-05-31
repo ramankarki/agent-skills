@@ -5,6 +5,9 @@
 # Uses: lightpanda (fetch), Mozilla Readability (content extraction), turndown (HTML→MD)
 # Called by: read-cache.sh (on miss), update-cache.sh (refresh all)
 
+# Cron-friendly PATH: lightpanda, node, npm, jq
+export PATH="/Users/raman/.local/bin:/Users/raman/.nvm/versions/node/v24.15.0/bin:/usr/bin:/bin"
+
 set -euo pipefail
 
 # ── config ────────────────────────────────────────────────────────────────────
@@ -40,7 +43,6 @@ else
 fi
 
 # ── fetch with lightpanda ─────────────────────────────────────────────────────
-echo "[scrape] fetching: $URL" >&2
 RAW_HTML=$(lightpanda fetch \
   --dump html \
   --strip-mode js \
@@ -94,13 +96,11 @@ if [[ -n "$EXISTING_FILENAME" ]]; then
   FILENAME="$EXISTING_FILENAME"
   FILEPATH="${OUTPUT_DIR}/${FILENAME}"
   echo "$CLEAN_MD" > "$FILEPATH"
-  echo "[scrape] updated → $FILEPATH" >&2
 else
   UUID=$(uuidgen | tr 'A-Z' 'a-z')
   FILENAME="${UUID}.md"
   FILEPATH="${OUTPUT_DIR}/${FILENAME}"
   echo "$CLEAN_MD" > "$FILEPATH"
-  echo "[scrape] saved → $FILEPATH" >&2
 fi
 
 # ── update index ──────────────────────────────────────────────────────────────
@@ -115,14 +115,12 @@ if [[ -n "$EXISTING_FILENAME" ]]; then
      --arg ts "$TIMESTAMP" \
      'map(if .url == $url then .updated_at = $ts else . end)' \
      "$INDEX_FILE" > "${INDEX_FILE}.tmp" && mv "${INDEX_FILE}.tmp" "$INDEX_FILE"
-  echo "[scrape] index: entry updated" >&2
 else
   jq --arg url "$URL" \
      --arg fn "$FILENAME" \
      --arg ts "$TIMESTAMP" \
      '. += [{"url": $url, "filename": $fn, "updated_at": $ts}]' \
      "$INDEX_FILE" > "${INDEX_FILE}.tmp" && mv "${INDEX_FILE}.tmp" "$INDEX_FILE"
-  echo "[scrape] index: new entry added" >&2
 fi
 
 # ── output filepath for caller ────────────────────────────────────────────────
