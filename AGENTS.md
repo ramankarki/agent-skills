@@ -318,6 +318,11 @@ Most endpoints support batch querying (up to 100 queries per request) by passing
 
 ## Web Scraping
 
+- **Always verify URL exists before scraping.** Google search first to confirm the URL is valid and accessible.
+  - Rationale: Avoids wasting time on dead links, outdated URLs, or typos.
+  - Process: Search → Verify URL in results → Then scrape
+  - Example: Before scraping Deepgram docs, search "Deepgram streaming STT documentation" to find the correct URL.
+
 Use `~/agent-skills/read-url.sh` for scraping web pages. Outputs clean markdown content to stdout for AI processing.
 
 ```bash

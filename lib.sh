@@ -45,13 +45,28 @@ get_cached_filename() {
     "$index_file" 2>/dev/null || echo ""
 }
 
-# Add or update entry in index
+# Add or update entry in index (with file locking for concurrent access)
 update_index() {
   local index_file="$1"
   local url="$2"
   local filename="$3"
   local timestamp="$4"
   local existing="$5"
+  local lock_dir="${index_file}.lock.d"
+
+  # Acquire exclusive lock using mkdir (atomic, works on macOS)
+  local waited=0
+  while ! mkdir "$lock_dir" 2>/dev/null; do
+    if [[ $waited -ge 30 ]]; then
+      echo "Error: Could not acquire lock for $index_file" >&2
+      return 1
+    fi
+    sleep 1
+    ((waited++)) || true
+  done
+
+  # Ensure lock is released on exit
+  trap 'rmdir "$lock_dir" 2>/dev/null' RETURN
 
   if [[ -n "$existing" ]]; then
     jq --arg url "$url" \
