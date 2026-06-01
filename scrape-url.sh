@@ -39,7 +39,13 @@ if [[ -d "$SCRIPT_DIR/node_modules" ]]; then
 else
   echo "[scrape] installing @mozilla/readability..." >&2
   cd "$SCRIPT_DIR"
-  npm install --silent @mozilla/readability jsdom turndown 2>/dev/null
+  if command -v bun &>/dev/null; then
+    bun add --silent @mozilla/readability jsdom turndown 2>/dev/null
+  elif command -v pnpm &>/dev/null; then
+    pnpm add --silent @mozilla/readability jsdom turndown 2>/dev/null
+  else
+    npm install --silent @mozilla/readability jsdom turndown 2>/dev/null
+  fi
   NODE_PATH="$SCRIPT_DIR/node_modules"
 fi
 
