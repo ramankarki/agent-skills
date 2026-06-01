@@ -23,8 +23,8 @@ else
 fi
 
 # ── symlink skills ─────────────────────────────────────────────────────────────
-echo "[setup] linking skills..."
-ln -sf "$SCRIPT_DIR/skills"/* ~/.pi/agent/skills/ 2>/dev/null || true
+# echo "[setup] linking skills..."
+# ln -sf "$SCRIPT_DIR/skills"/* ~/.pi/agent/skills/ 2>/dev/null || true
 ln -sf "$SCRIPT_DIR/AGENTS.md" ~/.pi/agent/AGENTS.md
 
 # ── validate ──────────────────────────────────────────────────────────────────
