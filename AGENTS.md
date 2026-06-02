@@ -318,13 +318,23 @@ Most endpoints support batch querying (up to 100 queries per request) by passing
 
 ## Web Scraping
 
+- **MANDATORY: Use web scraping for reading external documentation.** When you need to read docs for any package, library, framework, or API:
+  - Process: Google search → Verify URL → Scrape with `read-url.sh`
+  - NEVER guess API usage, NEVER assume knowledge, NEVER write code based on memory.
+  - Examples where scraping is REQUIRED:
+    - AWS SDK methods and signatures
+    - Framework getting started guides
+    - Library API references
+    - Package documentation
+    - Blog posts with implementation details
+  - Only exception: You have ALREADY scraped the docs in the current session for that specific topic.
+
 - **Always verify URL exists before scraping.** Google search first to confirm the URL is valid and accessible.
   - Rationale: Avoids wasting time on dead links, outdated URLs, or typos.
-  - Process: Search → Verify URL in results → Then scrape
   - Example: Before scraping Deepgram docs, search "Deepgram streaming STT documentation" to find the correct URL.
 
-Use `~/agent-skills/read-url.sh` for scraping web pages. Outputs clean markdown content to stdout for AI processing.
+**Use `~/agent-skills/read-url.sh` for scraping web pages.** Outputs clean markdown content to stdout for AI processing.
 
 ```bash
-./read-url.sh <url>
+~/agent-skills/read-url.sh <url>
 ```
