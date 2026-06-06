@@ -2,6 +2,10 @@
 
 ## IMPORTANT RULES (MUST FOLLOW)
 
+## Language 
+
+- Always use the language the user is writing in.
+
 ### Documentation & Knowledge
 
 - **Read latest docs before using external code.** When working with any cli, package, framework, library, or external dependency, always fetch and read the current documentation first.
@@ -13,6 +17,14 @@
   - Wrong: `"Convex documentation 2025"`, `"latest React docs 2025"`, `"best practices 2024"`
   - Right: `"Convex documentation"`, `"latest React docs"`, `"React best practices"`
   - The query should focus on the topic, not temporal markers.
+
+### Search & Context Rules
+
+- NEVER read entire large files or documentation into the context window.
+- When looking for specific code, functions, or documentation, ALWAYS use `rg` (ripgrep) or `grep` via the terminal.
+- Always use the context flag (e.g., `rg -C 15 "search_term"`) so you can see 15 lines above and below the match.
+- If a search returns too many results, refine your search query rather than reading all the results.
+- Only read a full file if I explicitly ask you to, or if the file is very small (< 100 lines).
 
 ### Technical Decisions
 
@@ -45,9 +57,7 @@
 - **When to read:** Session start, before new features
 - **When to update:** After features, decisions, milestones
 
----
-
-## Skills Guide
+### Skills Guide
 
 - **Use skills first.** Check for matching skill before writing code. Load with `read` tool, follow instructions.
 - **Combine multiple skills.** Read all matches, extract patterns, resolve conflicts, synthesize.
