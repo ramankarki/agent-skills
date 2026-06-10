@@ -2,31 +2,18 @@
 
 ## IMPORTANT RULES (MUST FOLLOW)
 
-## Language 
+### Language 
 
 - Always use the language the user is writing in.
 
 ### Documentation & Knowledge
-
-- **Read latest docs before using external code.** When working with any cli, package, framework, library, or external dependency, always fetch and read the current documentation first.
-  - Rationale: APIs change, features deprecate, best practices evolve. Outdated knowledge = broken code.
-  - Process: Search for official docs → Read docs → Then execute commands
-  - Example: For TanStack Start, search "TanStack Start getting started", read the docs page, then use the CLI command documented there.
 
 - When searching for latest data, NEVER include year/date in search query. Examples:
   - Wrong: `"Convex documentation 2025"`, `"latest React docs 2025"`, `"best practices 2024"`
   - Right: `"Convex documentation"`, `"latest React docs"`, `"React best practices"`
   - The query should focus on the topic, not temporal markers.
 
-### Search & Context Rules
-
-- NEVER read entire large files or documentation into the context window.
-- When looking for specific code, functions, or documentation, ALWAYS use `rg` (ripgrep) or `grep` via the terminal.
-- Always use the context flag (e.g., `rg -C 15 "search_term"`) so you can see 15 lines above and below the match.
-- If a search returns too many results, refine your search query rather than reading all the results.
-- Only read a full file if I explicitly ask you to, or if the file is very small (< 100 lines).
-
-### Technical Decisions
+### Technical Decisions & Tool selection
 
 - **Before making technical decisions, follow this process:**
   1. Search for existing solutions (libraries, patterns, best practices)
@@ -36,19 +23,16 @@
   5. Only proceed after user confirmation
   - Rationale: Avoids rework from misunderstood requirements or overlooked edge cases
   - Never assume. Always verify. Always ask.
+- **Prefer existing tools over custom code.** Before writing code from scratch, search for open-source, stable, well-maintained tools that solve the problem. When a tool is found:
+  - Present the tool with brief rationale (name, repo, why it fits)
+  - Ask user to confirm before proceeding with the suggested tool
+  - Only write custom code if no suitable tool exists or user declines the suggestion
 
 ### Package Management
 
 - **Package manager priority.** Use `bun` > `pnpm` > `npm` (in that order). Check availability with `command -v <pm>`. Use first available.
   - Rationale: bun/pnpm faster, better dependency handling than npm.
   - NEVER use npm or npx if bun or pnpm is available. Always prefer `bunx` over `npx`, `bun add` over `npm install`.
-
-### Tool Selection
-
-- **Prefer existing tools over custom code.** Before writing code from scratch, search for open-source, stable, well-maintained tools that solve the problem. When a tool is found:
-  - Present the tool with brief rationale (name, repo, why it fits)
-  - Ask user to confirm before proceeding with the suggested tool
-  - Only write custom code if no suitable tool exists or user declines the suggestion
 
 ### Project Context Maintenance
 
@@ -326,25 +310,62 @@ Most endpoints support batch querying (up to 100 queries per request) by passing
 
 ---
 
-## Web Scraping
+## Documentation lookup (doclab)
 
-- **MANDATORY: Use web scraping for reading external documentation.** When you need to read docs for any package, library, framework, or API:
-  - Process: Google search → Verify URL → Scrape with `read-url.sh`
-  - NEVER guess API usage, NEVER assume knowledge, NEVER write code based on memory.
-  - Examples where scraping is REQUIRED:
-    - AWS SDK methods and signatures
-    - Framework getting started guides
-    - Library API references
-    - Package documentation
-    - Blog posts with implementation details
-  - Only exception: You have ALREADY scraped the docs in the current session for that specific topic.
+**CRITICAL RULE:** Your training data is frozen at your cutoff date. APIs change,
+signatures move, packages deprecate, new features ship weekly. NEVER trust your
+internal knowledge for any package, library, framework, or API. ALWAYS query
+doclab first. Guesswork produces broken code.
 
-- **Always verify URL exists before scraping.** Google search first to confirm the URL is valid and accessible.
-  - Rationale: Avoids wasting time on dead links, outdated URLs, or typos.
-  - Example: Before scraping Deepgram docs, search "Deepgram streaming STT documentation" to find the correct URL.
+### What doclab provides
 
-**Use `~/agent-skills/read-url.sh` for scraping web pages.** Outputs clean markdown content to stdout for AI processing.
+| Command | Purpose |
+|---------|---------|
+| `doclab search "<query>"` | Search indexed docs (hybrid: vector + keyword) |
+| `doclab search "<q>" --source <name>` | Filter by source |
+| `doclab search "<q>" --kind <kind>` | Filter by kind (docs/article/tutorial/reference) |
+| `doclab search "<q>" --topK <n>` | Return more results (default 5) |
+| `doclab list` | List all indexed sources |
+| `doclab status` | Daemon health, chunk counts, freshness |
+| `doclab add <url> [--name <n>]` | Fetch → extract → chunk → embed → index |
+| `doclab pull [name]` | Re-fetch all or one source |
+| `doclab rebuild` | Drop DB, re-index everything |
+
+### When to query doclab
+
+Query doclab BEFORE:
+- Installing or importing any package
+- Calling any function, method, or constructor
+- Configuring middleware, plugins, or adapters
+- Setting up database connections or ORM queries
+- Using authentication, validation, or serialization APIs
+- Writing route handlers, server setup, or deployment config
+- Using any API that changed between major versions
+
+### What to do when results are missing
+
+- If `doclab search` returns nothing: TELL THE USER. Say "doclab has no
+  results for <query>. The docs may not cover this topic."
+- If the package is not in `doclab list`: ASK before guessing. Say
+  "I don't have <package> docs. Run: doclab add <url>"
+- If sources are stale ([stale] in `doclab status`): WARN THE USER.
+  Say "Warning: <source> docs are stale. Run: doclab pull"
+
+### NEVER do this
+
+- NEVER guess a function signature, parameter order, or return type
+- NEVER assume an API hasn't changed since your training data
+- NEVER write `import { X } from 'package'` without verifying X exists
+- NEVER use v3 syntax for a v4 package without checking migration docs
+- NEVER fabricate error messages, status codes, or config options
+
+### Search patterns that work well
 
 ```bash
-~/agent-skills/read-url.sh <url>
+doclab search "hono cors middleware setup"
+doclab search "drizzle sqlite schema definition" --source drizzle
+doclab search "stripe webhook signature verification"
+doclab search "better auth session management"
+doclab search "react hooks pattern" --kind article
+doclab search "tanstack query useQuery options" --source tanstack
 ```
