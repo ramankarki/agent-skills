@@ -197,6 +197,7 @@ name: CI
 on:
   pull_request:
     branches: [main]
+  workflow_call:
 
 jobs:
   test:
@@ -225,7 +226,9 @@ jobs:
       - run: bun run build
 ```
 
-**Why pull_request only?** Commitlint needs base/head SHAs which only exist on PRs. Single-commit pushes to main would fail. Run tests via pre-commit hook + CI on PR instead.
+`workflow_call` makes CI reusable — called from release workflow as gate before release-please.
+
+**Why pull_request + workflow_call?** Commitlint uses PR base/head SHAs on PRs; falls back to `--last` when called via workflow_call (push to main).
 
 **Optional — audit:** Add `bun audit` step after install to catch known vulnerabilities.
 
@@ -246,7 +249,11 @@ permissions:
   pull-requests: write
 
 jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
   release-please:
+    needs: ci
     runs-on: ubuntu-latest
     steps:
       - uses: googleapis/release-please-action@v5
@@ -304,14 +311,17 @@ on:
     types: [published]
 
 jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
   deploy:
+    needs: ci
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
         with: { bun-version: latest }
       - run: bun install --frozen-lockfile
-      - run: bun test
       - run: bun run build
       - run: bunx wrangler deploy
         env:
@@ -462,14 +472,16 @@ git commit -m "feat: add user profile endpoint"
 git push → open PR → CI runs → merge
   ↓
 release-please opens Release PR
+  → CI runs (gate)
   → version bump + CHANGELOG.md
   → review → merge
   ↓
 GitHub Release + git tag (v1.1.0)
   ↓
 Deploy workflow triggers
+  → CI runs (typecheck + test + build)
   → bun install --frozen-lockfile
-  → test + build
+  → build
   → deploy command
   → smoke test
   ↓

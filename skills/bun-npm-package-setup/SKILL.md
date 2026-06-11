@@ -236,6 +236,7 @@ name: CI
 on:
   pull_request:
     branches: [main]
+  workflow_call:
 
 jobs:
   test:
@@ -264,7 +265,9 @@ jobs:
       - run: bun run build
 ```
 
-**Why pull_request only?** Commitlint needs base/head SHAs which only exist on PRs. Single-commit pushes to main would fail. Run tests via pre-commit hook + CI on PR instead.
+`workflow_call` makes CI reusable — called from release workflow as gate before release-please.
+
+**Why pull_request + workflow_call?** Commitlint uses PR base/head SHAs on PRs; falls back to `--last` when called via workflow_call (push to main).
 
 **Optional — audit:** Add `bun audit` step after install to catch known vulnerabilities.
 
@@ -280,6 +283,8 @@ strategy:
 
 ## 7. Release Automation
 
+**Single workflow** — CI gate + release-please + npm publish. No duplication.
+
 `.github/workflows/release-please.yml`:
 
 ```yaml
@@ -293,14 +298,44 @@ permissions:
   pull-requests: write
 
 jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
   release-please:
+    needs: ci
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
     steps:
       - uses: googleapis/release-please-action@v5
+        id: release
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
+
+  npm-publish:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: actions/setup-node@v6
+        with:
+          node-version: latest
+          registry-url: 'https://registry.npmjs.org'
+
+      - run: bun install --frozen-lockfile
+      - run: npm publish --provenance
 ```
+
+**Flow:** push to main → CI (typecheck + test + build) → release-please → if release created → npm publish + smoke test.
+
+**Why both Bun and Node?** `bun install` needed for `prepublishOnly` (build + test + typecheck). `npm publish --provenance` needed because `bun publish` does not support OIDC/provenance yet ([bun#15601](https://github.com/oven-sh/bun/issues/15601)).
 
 `release-please-config.json`:
 
@@ -339,68 +374,17 @@ jobs:
 
 ---
 
-## 8. Publish Workflow
-
-**Merge publish into the release-please workflow** — use `outputs` + conditional job. Single file, no duplication.
-
-`.github/workflows/release-please.yml` (full version with publish):
-
-```yaml
-name: release-please
-on:
-  push:
-    branches: [main]
-
-permissions:
-  contents: write
-  pull-requests: write
-
-jobs:
-  release-please:
-    runs-on: ubuntu-latest
-    outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-    steps:
-      - uses: googleapis/release-please-action@v5
-        id: release
-        with:
-          config-file: release-please-config.json
-
-  npm-publish:
-    needs: release-please
-    if: ${{ needs.release-please.outputs.release_created }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - run: bun install --frozen-lockfile
-
-      - run: bun publish --provenance --access public
-
-      - name: Smoke test
-        run: |
-          bun add -g my-package
-          my-cli --version
-```
-
-Smoke test catches "published but broken" before users report it.
-
 ---
 
-## 9. npm Provenance (OIDC)
+## 8. npm Provenance (OIDC)
 
 ```
+**Important:** `bun publish` does not support OIDC/provenance yet ([bun#15601](https://github.com/oven-sh/bun/issues/15601)). Use `npm publish --provenance` with `actions/setup-node@v6`.
+
 Workflow runs
   → id-token: write permission
   → GitHub provides OIDC token
-  → bun publish --provenance exchanges it
+  → npm publish --provenance exchanges it
   → npm verifies: "came from repo X, workflow Y, commit Z"
   → Package page shows "Built and signed on GitHub Actions"
 ```
@@ -409,7 +393,7 @@ Verify: npm package page → Provenance tab → shows commit hash + workflow fil
 
 ---
 
-## 10. README Badges
+## 9. README Badges
 
 ```markdown
 ![CI](https://github.com/user/repo/actions/workflows/ci.yml/badge.svg)
@@ -419,7 +403,7 @@ Verify: npm package page → Provenance tab → shows commit hash + workflow fil
 
 ---
 
-## 11. PR Template
+## 10. PR Template
 
 `.github/PULL_REQUEST_TEMPLATE.md`:
 
@@ -451,7 +435,7 @@ Verify: npm package page → Provenance tab → shows commit hash + workflow fil
 
 ---
 
-## 12. npm Maintenance
+## 11. npm Maintenance
 
 ### Deprecate old versions
 ```bash
@@ -475,7 +459,7 @@ bun run publish:dry    # requires: "publish:dry": "npm pack --dry-run"
 
 ---
 
-## 13. Full Release Flow
+## 12. Full Release Flow
 
 ```
 git checkout -b feat/new-feature
@@ -490,19 +474,22 @@ release-please opens Release PR
   ↓
 GitHub Release + git tag (v1.1.0)
   ↓
-release-please workflow detects release_created=true
-  → npm-publish job (conditional)
-  → bun install --frozen-lockfile
-  → prepublishOnly (build + test + typecheck)
-  → bun publish --provenance
-  → smoke test
+release-please workflow on push to main:
+  → CI runs (typecheck + test + build)
+  → release-please job (only if CI passed)
+  → if release_created:
+    → npm-publish job
+    → bun install --frozen-lockfile
+    → prepublishOnly (build + test + typecheck)
+    → npm publish --provenance (via setup-node)
+    → smoke test
   ↓
 Live on npm ✅
 ```
 
 ---
 
-## 14. Monorepo
+## 13. Monorepo
 
 ### Structure
 ```
@@ -552,7 +539,11 @@ steps:
 
 ### Publishing — per-package
 ```yaml
-- run: cd ${{ github.event.release.tag_name }} && bun publish --provenance
+- uses: actions/setup-node@v6
+  with:
+    node-version: latest
+    registry-url: 'https://registry.npmjs.org'
+- run: cd ${{ github.event.release.tag_name }} && npm publish --provenance --access public
 ```
 
 ### Bun workspace commands
@@ -565,7 +556,7 @@ bun add -D typescript -w              # add devDep to root
 
 ---
 
-## 15. Production Checklist
+## 14. Production Checklist
 
 - [ ] `name` correct, available on npm
 - [ ] `publishConfig.access: "public"`
