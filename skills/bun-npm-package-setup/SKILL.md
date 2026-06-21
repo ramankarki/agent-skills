@@ -154,16 +154,13 @@ Wire it up in `package.json`:
 export default { extends: ['@commitlint/config-conventional'] }
 ```
 
-Add to CI workflow (uses PR base/head SHAs for accurate diff):
+Add to CI workflow (fetches full history for accurate commit range):
 ```yaml
 - name: Lint commits
-  run: |
-    if [ "${{ github.event_name }}" = "pull_request" ]; then
-      bunx commitlint --from "${{ github.event.pull_request.base.sha }}" --to "${{ github.event.pull_request.head.sha }}" --verbose
-    else
-      bunx commitlint --last --verbose
-    fi
+  run: bunx commitlint --from origin/main --to HEAD --verbose
 ```
+
+Requires `fetch-depth: 0` in checkout step so `origin/main` is available.
 
 ---
 
@@ -243,6 +240,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -251,12 +250,7 @@ jobs:
       - run: bun install --frozen-lockfile
 
       - name: Lint commits
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            bunx commitlint --from "${{ github.event.pull_request.base.sha }}" --to "${{ github.event.pull_request.head.sha }}" --verbose
-          else
-            bunx commitlint --last --verbose
-          fi
+        run: bunx commitlint --from origin/main --to HEAD --verbose
 
       - run: bun run typecheck
 
@@ -321,16 +315,20 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
       - uses: actions/setup-node@v6
         with:
           node-version: latest
           registry-url: 'https://registry.npmjs.org'
 
       - run: bun install --frozen-lockfile
-      - run: npm publish --provenance
+      - run: npm publish --provenance --access public
 ```
 
 **Flow:** push to main → CI (typecheck + test + build) → release-please → if release created → npm publish + smoke test.
